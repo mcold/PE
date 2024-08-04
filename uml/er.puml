@@ -1,0 +1,82 @@
+@startuml
+
+!theme plain
+hide empty methods
+
+!procedure $schema($name, $slug)
+package "$name" as $slug <<Rectangle>>
+!endprocedure
+
+!procedure $table($name, $slug)
+entity "<b>$name</b>" as $slug << (T, Orange) table >>
+!endprocedure
+
+!procedure $view($name, $slug)
+entity "<b>$name</b>" as $slug << (V, Aquamarine) view >>
+!endprocedure
+
+!procedure $pk($name)
+<color:#GoldenRod><&key></color> <b>$name</b>
+!endprocedure
+
+!procedure $fk($name)
+<color:#Silver><&key></color> $name
+!endprocedure
+
+!procedure $column($name)
+{field} <color:#White><&media-record></color> $name
+!endprocedure
+
+
+title "Prof Examiner"
+
+
+$schema("Generator", "id_0") {
+
+  $table("ITEM", "id_1") {
+    $pk("ID"): INTEGER NOT NULL
+    $column("NAME"): VARCHAR NOT NULL
+    
+  }
+
+  $table("EXAM", "id_2") {
+    $pk("ID"): INTEGER NOT NULL
+    $column("ID_ITEM"): INTEGER NOT NULL
+    $column("NAME"): VARCHAR NOT NULL
+  }
+
+  $table("TESTLET", "id_3") {
+    $pk("ID"): INTEGER NOT NULL
+    $column("ID_EXAM"): INTEGER NOT NULL
+    $column("NAME"): VARCHAR NOT NULL
+  }
+
+  $table("SECTION", "id_4") {
+    $pk("ID"): INTEGER NOT NULL
+    $column("NAME"): VARCHAR
+  }
+
+  $table("QUEST", "id_5") {
+    $pk("ID"): INTEGER NOT NULL
+    $column("ID_LET"): INTEGER NOT NULL
+    $column("ID_SECTION"): INTEGER NOT NULL
+    $column("NAME"): VARCHAR NOT NULL
+    $column("CONTENT"): CLOB NOT NULL
+  }
+
+  $table("ANS", "id_6") {
+      $pk("ID"): INTEGER NOT NULL
+      $column("ID_QUEST"): VARCHAR NOT NULL
+      $column("CONTENT"): CLOB NOT NULL
+      $column("IS_CORRECT"): INTEGER NOT NULL DEFAULT 0
+  }
+
+  $table("EXP", "id_7") {
+      $pk("ID"): INTEGER NOT NULL
+      $column("ID_QUEST"): INTEGER NOT NULL
+      $column("CONTENT"): CLOB
+  }
+
+}
+
+@enduml
