@@ -38,6 +38,7 @@ def get_item_file(file_name: str, item_name: str) -> db.Item:
         item.name = item_name
         for line in l_lines:
             if len(line.strip()) > 0:
+                line = line.replace("'", '').replace('"', '')
 
                 if line.lower().startswith('exam'):
                     if b_exam:

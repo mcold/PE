@@ -6,6 +6,7 @@ db = 'DB.db'
 
 
 # TODO: save: если quest уже существует -> заново сохранить ответ и объяснение
+# TODO: section saving and getting
 
 """
 Exam [Name]
@@ -44,13 +45,28 @@ class Ans:
     def __str__(self):
         return self.content
 
+    def drop(self) -> None:
+        with connect(db) as conn:
+            cur = conn.cursor()
+            cur.execute(f"""delete 
+                              from ans
+                             where id = {self.id}""")
+            conn.commit()
+
     def save(self):
         with connect(db) as conn:
             cur = conn.cursor()
-            # TODO: change is_correct to number
+            if self.is_correct:
+                val = 1
+            else:
+                val = 0
+                
             cur.execute(f"""insert into ans(id_quest, content, is_correct)
-                              values({self.id_quest}, '{self.content}', {self.is_correct})
+                              values({self.id_quest}, '{self.content}', {val})
+                            returning id
                         """)
+
+            self.id = cur.fetchone()[0]
 
 class Exp:
 
@@ -67,12 +83,23 @@ class Exp:
     def __repr__(self) -> str:
         return 'Explanation:\n' + self.content + '\n' 
 
-    def save(self):
+    def drop(self) -> None:
         with connect(db) as conn:
             cur = conn.cursor()
-            cur.execute(f"""insert into exp(id_quest, content)
-                              values({self.id_quest}, '{self.content}')
-                        """)
+            cur.execute(f"""delete 
+                              from exp 
+                             where id = {self.id}""")
+            conn.commit()
+
+    def save(self):
+        if len(self.content.strip()) > 0:
+            with connect(db) as conn:
+                cur = conn.cursor()
+                cur.execute(f"""insert into exp(id_quest, content)
+                                values({self.id_quest}, '{self.content}')
+                                returning id
+                            """)
+                self.id = cur.fetchone()[0]
 
 class Section:
 
@@ -96,7 +123,9 @@ class Section:
             cur = conn.cursor()
             cur.execute(f"""insert into section(name)
                               values('{self.name}')
+                            returning id
                         """)
+            self.id = cur.fetchone()[0]
 
 class Quest:
 
@@ -105,7 +134,7 @@ class Quest:
             self.id = t[0]
             self.id_set = t[1]
             self.id_section = t[2]
-            self.content = t[3]
+            self.content = t[3].replace("'", '').replace('"', '')
 
             if self.id_section:
                 self.section = self.get_section()
@@ -150,6 +179,17 @@ class Quest:
 
         # TODO: + explanation
         return res
+
+    def drop(self) -> None:
+        for ans in self.l_ans: ans.drop()
+        if self.exp:
+            self.exp.drop()
+        with connect(db) as conn:
+            cur = conn.cursor()
+            cur.execute(f"""delete 
+                              from quest 
+                             where id = {self.id}""")
+            conn.commit()
 
     def get_ans(self):
         with connect(db) as conn:
@@ -207,13 +247,19 @@ class Quest:
     def save(self):
         with connect(db) as conn:
             cur = conn.cursor()
-            cur.execute(f"""insert into quest(id_let, id_section, name, content)
-                              values({self.id_set}, {self.id_section}, '{self.name}', '{self.content}')
+            cur.execute(f"""insert into quest(id_set, content)
+                              values({self.id_set}, '{self.content}')
                             on conflict do nothing
+                            returning id
                         """)
-            # TODO: get id_quest + set id_quest to anses
-        for ans in self.l_ans: ans.save()
-        self.exp.save()
+            self.id = cur.fetchone()[0]
+        for ans in self.l_ans: 
+            ans.id_quest = self.id
+            ans.save()
+
+        if self.exp:
+            self.exp.id_quest = self.id
+            self.exp.save()
 
 class QSet:
 
@@ -243,27 +289,39 @@ class QSet:
     def __str__tree__(self) -> str:
         return self.name + '\n'
 
+    def drop(self) -> None:
+        for quest in self.l_quests: quest.drop()
+        with connect(db) as conn:
+            cur = conn.cursor()
+            cur.execute(f"""delete 
+                              from qset 
+                             where id = {self.id}""")
+            conn.commit()
+
     def get_quests(self):
         with connect(db) as conn:
             cur = conn.cursor()
             cur.execute("""select id,
-                                  id_let,
+                                  id_set,
                                   id_section,
                                   content  
                              from quest
-                            where id_let = {id}
+                            where id_set = {id}
                             order by id;""".format(id = self.id))
         return [Quest(result) for result in cur.fetchall()]
     
     def save(self):
         with connect(db) as conn:
             cur = conn.cursor()
-            cur.execute(f"""insert into testlet(id_exam, name)
+            cur.execute(f"""insert into qset(id_exam, name)
                               values({self.id_exam}, '{self.name}')
                             on conflict do nothing
+                            returning id
                         """)
-            # TODO: get id_set + set id_set to quests
-        for quest in self.l_quests: quest.save()
+            self.id = cur.fetchone()[0]
+        for quest in self.l_quests: 
+            quest.id_set = self.id
+            quest.save()
 
 
 class Exam:
@@ -290,6 +348,15 @@ class Exam:
     def __str__tree__(self) -> str:
         return self.name + '\n' + '\n\t\t'.join([qset.__str__tree__() for qset in self.l_sets])
 
+    def drop(self) -> None:
+        for tlet in self.l_sets: tlet.drop()
+        with connect(db) as conn:
+            cur = conn.cursor()
+            cur.execute(f"""delete 
+                              from exam 
+                             where id = {self.id}""")
+            conn.commit()
+
     def get_qsets(self):
         with connect(db) as conn:
             cur = conn.cursor()
@@ -307,9 +374,12 @@ class Exam:
             cur.execute(f"""insert into exam(id_item, name)
                               values({self.id_item}, '{self.name}')
                             on conflict do nothing
+                            returning id
                         """)
-            # TODO: get id_exam + set id_exam to sets
-        for tlet in self.l_sets: tlet.save()
+            self.id = cur.fetchone()[0]
+        for tlet in self.l_sets: 
+            tlet.id_exam = self.id
+            tlet.save()
 
 class Item:
 
@@ -335,6 +405,15 @@ class Item:
     
     def __str__tree__(self) -> str:
         return self.name + '\n' + '\n\t'.join([ex.__str__tree__() for ex in self.l_exams])
+    
+    def drop(self) -> None:
+        for ex in self.l_exams: ex.drop()
+        with connect(db) as conn:
+            cur = conn.cursor()
+            cur.execute(f"""delete 
+                              from item 
+                             where id = {self.id}""")
+            conn.commit()
 
     def get_exams(self):
         with connect(db) as conn:
@@ -353,20 +432,26 @@ class Item:
             cur.execute(f"""insert into item(name)
                               values('{self.name}')
                             on conflict do nothing
+                            returning id
                         """)
-        # TODO: get_id_item -> set to exam
+            self.id = cur.fetchone()[0]
+        for exam in self.l_exams: 
+            exam.id_item = self.id
+            exam.save()
 
 
-def get_item(item_name: str = None) -> list:
+def get_item(item_name: str = None) -> Item:
     with connect(db) as conn:
         cur = conn.cursor()
         cur.execute("""select id,
                               name
                          from item
                         where lower(name) = lower('{name}')
-                        order by name
+                        limit 1
                     """.format(name = item_name))
-    return [Item(result) for result in cur.fetchall()]
+        l = cur.fetchall()
+        if len(l) > 0: return Item(l[0])
+        else: return Item(tuple())
 
 def get_items(item_name: str = None) -> list:
     with connect(db) as conn:
@@ -374,10 +459,26 @@ def get_items(item_name: str = None) -> list:
         cur.execute("""select id,
                               name
                          from item
-                        where lower(name) = lower('{name}')
+                        where lower(name) like lower('{name}')
                         order by name
                     """.format(name = item_name))
-    return [Item(result) for result in cur.fetchall()]
+        l = cur.fetchall()
+        if len(l) > 0: return [Item(x) for x in l]
+        else: return []
+
+def get_exam(id_item: int, exam_name: str) -> Exam:
+    with connect(db) as conn:
+        cur = conn.cursor()
+        cur.execute("""select id,
+                              id_item,
+                              name
+                         from exam
+                        where lower(name) = lower('{name}')
+                        limit 1
+                    """.format(name = exam_name, id_item = id_item))
+        l = cur.fetchall()
+        if len(l) > 0: return Exam(l[0])
+        else: return Exam(tuple())
 
 def create_db(con: connect) -> None:
     cur = con.cursor()
@@ -403,7 +504,6 @@ def create_db(con: connect) -> None:
                     create table quest (id          integer primary key autoincrement,
                                         id_set      integer references qset(id),
                                         id_section  integer references section(id),
-                                        name        text not null unique,
                                         content     text not null);
                 """)
     cur.execute("""

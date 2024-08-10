@@ -60,7 +60,6 @@ $schema("Generator", "id_0") {
     $pk("ID"): INTEGER NOT NULL
     $column("ID_LET"): INTEGER NOT NULL
     $column("ID_SECTION"): INTEGER NOT NULL
-    $column("NAME"): VARCHAR NOT NULL
     $column("CONTENT"): CLOB NOT NULL
   }
 
