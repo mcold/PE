@@ -106,12 +106,15 @@ class Exp:
 
 class Section:
 
+    def __eq__(self, other):
+        return self.id == other.id and self.name == other.name
+
     def __init__(self, t: tuple):
         if len(t) > 0:
             self.id = t[0]
             self.name = t[1]
 
-            self.l_quests = self.get_quests()
+            # self.l_quests = self.get_quests()
         else:
             self.id = None
             self.name = ''
@@ -120,6 +123,14 @@ class Section:
 
     def __repr__(self) -> str:
         return 'Section: ' + self.name
+    
+    def drop(self) -> None:
+        with connect(db) as conn:
+            cur = conn.cursor()
+            cur.execute(f"""delete 
+                              from section
+                             where id = {self.id}""")
+            conn.commit()
     
     def save(self):
         with connect(db) as conn:
@@ -261,6 +272,11 @@ class Quest:
         if self.exp:
             self.exp.id_quest = self.id
             self.exp.save()
+        
+        if self.section:
+            if not self.section.id:
+                self.section.save()
+                    
 
 class QSet:
 
@@ -440,6 +456,19 @@ class Item:
             exam.id_item = self.id
             exam.save()
 
+def get_exam(id_item: int, exam_name: str) -> Exam:
+    with connect(db) as conn:
+        cur = conn.cursor()
+        cur.execute("""select id,
+                              id_item,
+                              name
+                         from exam
+                        where lower(name) = lower('{name}')
+                        limit 1
+                    """.format(name = exam_name, id_item = id_item))
+        l = cur.fetchall()
+        if len(l) > 0: return Exam(l[0])
+        else: return Exam(tuple())
 
 def get_item(item_name: str = None) -> Item:
     with connect(db) as conn:
@@ -468,19 +497,20 @@ def get_items(item_name: str = None) -> list:
         if len(l) > 0: return [Item(x) for x in l]
         else: return []
 
-def get_exam(id_item: int, exam_name: str) -> Exam:
+def get_section(name: str) -> Section:
     with connect(db) as conn:
         cur = conn.cursor()
         cur.execute("""select id,
                               id_item,
                               name
-                         from exam
+                         from section
                         where lower(name) = lower('{name}')
                         limit 1
-                    """.format(name = exam_name, id_item = id_item))
+                    """.format(name = name))
         l = cur.fetchall()
-        if len(l) > 0: return Exam(l[0])
-        else: return Exam(tuple())
+        if len(l) > 0: return Section(l[0])
+        else: return Section(tuple())
+
 
 def create_db(con: connect) -> None:
     cur = con.cursor()

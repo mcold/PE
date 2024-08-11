@@ -35,6 +35,8 @@ def get_item_file(file_name: str, item_name: str) -> db.Item:
         ans = db.Ans(tuple())
         exp = db.Exp(tuple())
 
+        section = None
+
         item.name = item_name
         for line in l_lines:
             if len(line.strip()) > 0:
@@ -118,6 +120,13 @@ def get_item_file(file_name: str, item_name: str) -> db.Item:
                     quest = set_correct_ans(quest=quest, l=l_correct_ans)
                     b_ans = False
                     b_exp = False
+                    continue
+
+                if line.lower().startswith('section'):
+                    quest.section = db.Section(tuple(None, line.split(':')[-1].strip()))
+                    sect = db.get_section(name=quest.section.name)
+                    if sect.id:
+                        quest.section = sect
                     continue
 
                 if line.lower().startswith('explanation'):
