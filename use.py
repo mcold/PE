@@ -39,7 +39,7 @@ def get_item_file(file_name: str, item_name: str) -> db.Item:
         for line in l_lines:
             if len(line.strip()) > 0:
                 line = line.replace("'", '').replace('"', '')
-
+                # TODO: rewrite to pattern matching
                 if line.lower().startswith('exam'):
                     if b_exam:
                         if b_testlet:

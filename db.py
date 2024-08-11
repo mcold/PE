@@ -81,8 +81,11 @@ class Exp:
             self.content = ''
 
     def __repr__(self) -> str:
-        return 'Explanation:\n' + self.content + '\n' 
-
+        return 'Explanation:\n' + self.content + '\n'
+    
+    def __str__(self) -> str:
+        return 'Explanation:\n' + self.content + '\n'
+    
     def drop(self) -> None:
         with connect(db) as conn:
             cur = conn.cursor()
@@ -166,7 +169,7 @@ class Quest:
         # answers
         res +=  self.get_correct_str() + '\n'
         if self.section: res += self.section.__repr__()
-        if self.exp: res += self.exp.__repr__() + '\n'
+        if self.exp: res += '\n\n' + self.exp.__repr__()
 
         return res
     
@@ -177,7 +180,7 @@ class Quest:
 
         res += self.get_correct_str()
 
-        # TODO: + explanation
+        if self.exp: res += '\n\n' + self.exp.__repr__()
         return res
 
     def drop(self) -> None:
@@ -221,8 +224,7 @@ class Quest:
                                   id_quest,
                                   content
                              from exp
-                            where id_quest = {id}
-                            order by id""".format(id = self.id))
+                            where id_quest = {id}""".format(id = self.id))
         res = cur.fetchone()
         if res:
             return Exp(res)
@@ -233,8 +235,7 @@ class Quest:
         with connect(db) as conn:
             cur = conn.cursor()
             cur.execute("""select id,
-                                  id_quest,
-                                  content
+                                  name
                              from section
                             where id = {id}
                             """.format(id = self.id_section))
@@ -307,7 +308,7 @@ class QSet:
                                   content  
                              from quest
                             where id_set = {id}
-                            order by id;""".format(id = self.id))
+                            order by id""".format(id = self.id))
         return [Quest(result) for result in cur.fetchall()]
     
     def save(self):
@@ -343,7 +344,7 @@ class Exam:
         return '\nExam ' + self.name + '\n' + '\n'.join([x.__repr__() for x in self.l_lets])
 
     def __str__(self) -> str:
-        return '\nExam ' + self.name + '\n' + '\n'.join([x.__str__() for x in self.l_sets])
+        return 'Exam ' + self.name + '\n' + '\n'.join([x.__str__() for x in self.l_sets])
 
     def __str__tree__(self) -> str:
         return self.name + '\n' + '\n\t\t'.join([qset.__str__tree__() for qset in self.l_sets])
@@ -365,7 +366,7 @@ class Exam:
                                   name
                              from qset
                             where id_exam = {id}
-                            order by id;""".format(id = self.id))
+                            order by id""".format(id = self.id))
         return [QSet(result) for result in cur.fetchall()]
 
     def save(self):
@@ -401,7 +402,7 @@ class Item:
         return '\n'.join(self.l_exams)
     
     def __str__(self) -> str:
-        return self.name + '\n' + '\n' + '\n'.join([x.__str__() for x in self.l_exams])
+        return '\n'.join([x.__str__() for x in self.l_exams])
     
     def __str__tree__(self) -> str:
         return self.name + '\n' + '\n\t'.join([ex.__str__tree__() for ex in self.l_exams])
@@ -423,7 +424,7 @@ class Item:
                                   name
                              from exam
                             where id_item = {id}
-                            order by id;""".format(id = self.id))
+                            order by id""".format(id = self.id))
         return [Exam(result) for result in cur.fetchall()]
     
     def save(self):
@@ -447,10 +448,11 @@ def get_item(item_name: str = None) -> Item:
                               name
                          from item
                         where lower(name) = lower('{name}')
+                        order by lower(name)
                         limit 1
                     """.format(name = item_name))
         l = cur.fetchall()
-        if len(l) > 0: return Item(l[0])
+        if len(l) > 0: return Item(l[0], from_db=True)
         else: return Item(tuple())
 
 def get_items(item_name: str = None) -> list:

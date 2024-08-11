@@ -58,7 +58,7 @@ $schema("Generator", "id_0") {
 
   $table("QUEST", "id_5") {
     $pk("ID"): INTEGER NOT NULL
-    $column("ID_LET"): INTEGER NOT NULL
+    $column("ID_SET"): INTEGER NOT NULL
     $column("ID_SECTION"): INTEGER NOT NULL
     $column("CONTENT"): CLOB NOT NULL
   }
