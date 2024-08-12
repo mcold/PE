@@ -76,6 +76,12 @@ $schema("Generator", "id_0") {
       $column("CONTENT"): CLOB
   }
 
+  $table("TYPING", "id_8") {
+      $pk("ID"): INTEGER NOT NULL
+      $column("ID_QUEST"): INTEGER NOT NULL
+      $column("CONTENT"): CLOB
+  }
+
 }
 
 @enduml

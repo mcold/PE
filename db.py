@@ -28,6 +28,40 @@ Explanation:
 
 """
 
+class Typing:
+
+    def __init__(self, t: tuple):
+        if len(t) > 0:
+            self.id = t[0]
+            self.id_quest = t[1]
+            self.content = t[2]
+        else:
+            self.id = None
+            self.id_quest = None
+            self.content = ''
+
+    def __str__(self):
+        return self.content
+
+    def drop(self) -> None:
+        with connect(db) as conn:
+            cur = conn.cursor()
+            cur.execute(f"""delete 
+                              from typing
+                             where id = {self.id}""")
+            conn.commit()
+
+    def save(self):
+        with connect(db) as conn:
+            cur = conn.cursor()
+                
+            cur.execute(f"""insert into typing(id_quest, content)
+                              values({self.id_quest}, '{self.content}')
+                            returning id
+                        """)
+
+            self.id = cur.fetchone()[0]
+
 class Ans:
 
     def __init__(self, t: tuple):
@@ -124,6 +158,9 @@ class Section:
     def __repr__(self) -> str:
         return 'Section: ' + self.name
     
+    def __str__(self) -> str:
+        return 'Section: ' + self.name
+    
     def drop(self) -> None:
         with connect(db) as conn:
             cur = conn.cursor()
@@ -153,17 +190,19 @@ class Quest:
             if self.id_section:
                 self.section = self.get_section()
             else:
-                self.section = None
+                self.section = Section(tuple())
 
             self.l_ans = self.get_ans()
+            self.typing = self.get_typing()
             self.exp = self.get_exp()
         else:
             self.id = None
             self.id_set = None
             self.id_section = None
             self.content = ''
-            self.section = None
+            self.section = Section(tuple())
             self.l_ans = list()
+            self.typing = Typing(tuple())
             self.exp = Exp(tuple())
 
     def __repr__(self) -> str:
@@ -179,25 +218,29 @@ class Quest:
 
         # answers
         res +=  self.get_correct_str() + '\n'
-        if self.section: res += self.section.__repr__()
+        if self.section.id: res += '\n' + self.section.__repr__()
         if self.exp: res += '\n\n' + self.exp.__repr__()
 
         return res
     
     def __str__(self) -> str:
         res = self.content + '\n\n'
-        for i in range(len(self.l_ans)): res += f'{string.ascii_uppercase[i]}. ' + self.l_ans[i].__str__() + '\n'
-        res += '\n'
+        if len(self.l_ans) > 0:
+            for i in range(len(self.l_ans)): res += f'{string.ascii_uppercase[i]}. ' + self.l_ans[i].__str__() + '\n'
+            res += '\n'
 
-        res += self.get_correct_str()
-
-        if self.exp: res += '\n\n' + self.exp.__repr__()
+            res += self.get_correct_str()
+        else:
+            res += f'Correct answer: {self.typing.content}\n'
+        
+        if self.section.id: res += '\n' + self.section.__str__()
+        if self.exp: res += '\n\n' + self.exp.__str__()
         return res
 
     def drop(self) -> None:
         for ans in self.l_ans: ans.drop()
-        if self.exp:
-            self.exp.drop()
+        if self.exp: self.exp.drop()
+        if self.typing.id: self.typing.drop()
         with connect(db) as conn:
             cur = conn.cursor()
             cur.execute(f"""delete 
@@ -251,10 +294,23 @@ class Quest:
                             where id = {id}
                             """.format(id = self.id_section))
         res = cur.fetchone()
-        if res:
+        if res[0]:
             return Section(res)
         else:
-            return None
+            return Section(tuple())
+    
+    def get_typing(self):
+        with connect(db) as conn:
+            cur = conn.cursor()
+            cur.execute("""select id,
+                                  id_quest,
+                                  content
+                             from typing
+                            where id_quest = {id_quest}
+                            """.format(id_quest = self.id))
+        res = cur.fetchone()
+        if res: return Typing(res)
+        else: return Typing(tuple())
     
     def save(self):
         with connect(db) as conn:
@@ -273,9 +329,20 @@ class Quest:
             self.exp.id_quest = self.id
             self.exp.save()
         
-        if self.section:
+        if self.section.name:
             if not self.section.id:
                 self.section.save()
+                with connect(db) as conn:
+                    cur = conn.cursor()
+                    cur.execute(f"""update quest
+                                    set id_section = {self.section.id}
+                                    where id = {self.id}
+                            """)
+
+        if self.typing:
+            if self.typing.content:
+                self.typing.id_quest = self.id
+                self.typing.save()
                     
 
 class QSet:
@@ -501,7 +568,6 @@ def get_section(name: str) -> Section:
     with connect(db) as conn:
         cur = conn.cursor()
         cur.execute("""select id,
-                              id_item,
                               name
                          from section
                         where lower(name) = lower('{name}')
@@ -548,4 +614,9 @@ def create_db(con: connect) -> None:
                     create table exp (id        integer primary key autoincrement,
                                       id_quest  integer references quest(id),
                                       content   text not null);
+                """)
+    cur.execute("""
+                    create table typing (id        integer primary key autoincrement,
+                                        id_quest   integer references quest(id),
+                                        content    text not null);
                 """)

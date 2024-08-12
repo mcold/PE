@@ -26,3 +26,7 @@ create table ans (id            integer primary key autoincrement,
 create table exp (id        integer primary key autoincrement,
                   id_quest  integer references quest(id),
                   content   text not null unique);
+
+create table typing (id        integer primary key autoincrement,
+                    id_quest   integer references quest(id),
+                    content    text not null);
