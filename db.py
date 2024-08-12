@@ -174,9 +174,21 @@ class Section:
             cur = conn.cursor()
             cur.execute(f"""insert into section(name)
                               values('{self.name}')
+                              on conflict do nothing
                             returning id
                         """)
+            l = cur.fetchall()
+            if len(l) > 0: 
+                self.id = l[0][0]
+                return
+            
+            cur.execute(f"""select id 
+                              from section
+                             where name = '{self.name}'
+                        limit 1
+                        """)
             self.id = cur.fetchone()[0]
+            return
 
 class Quest:
 
@@ -313,14 +325,36 @@ class Quest:
         else: return Typing(tuple())
     
     def save(self):
-        with connect(db) as conn:
-            cur = conn.cursor()
-            cur.execute(f"""insert into quest(id_set, content)
-                              values({self.id_set}, '{self.content}')
-                            on conflict do nothing
-                            returning id
-                        """)
-            self.id = cur.fetchone()[0]
+        b_no_section = True
+        if self.section.name:
+            if not self.section.id:
+                b_no_section = False
+                self.section.save()
+                self.id_section = self.section.id
+        
+                with connect(db) as conn:
+                    cur = conn.cursor()
+                    cur.execute(f"""insert into quest(id_set, id_section, content)
+                                    values({self.id_set}, {self.id_section}, '{self.content}')
+                                    on conflict do nothing
+                                    returning id
+                                """)
+                    self.id = cur.fetchone()[0]
+            else:
+                b_no_section = True
+        else:
+            b_no_section = True
+
+        if b_no_section:
+            with connect(db) as conn:
+                cur = conn.cursor()
+                cur.execute(f"""insert into quest(id_set, content)
+                                values({self.id_set}, '{self.content}')
+                                on conflict do nothing
+                                returning id
+                            """)
+                self.id = cur.fetchone()[0]
+
         for ans in self.l_ans: 
             ans.id_quest = self.id
             ans.save()
@@ -329,16 +363,6 @@ class Quest:
             self.exp.id_quest = self.id
             self.exp.save()
         
-        if self.section.name:
-            if not self.section.id:
-                self.section.save()
-                with connect(db) as conn:
-                    cur = conn.cursor()
-                    cur.execute(f"""update quest
-                                    set id_section = {self.section.id}
-                                    where id = {self.id}
-                            """)
-
         if self.typing:
             if self.typing.content:
                 self.typing.id_quest = self.id
