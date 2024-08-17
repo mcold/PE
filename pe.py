@@ -40,9 +40,11 @@ def imp(file_name: str, item_name: str, stream: str = 'rewrite') -> None:
             if ex_db.id:
                 if stream == 'rewrite':
                     for tlet in ex_db.l_sets:
-                        tlet.drop() # TODO
+                        tlet.drop()
                     ex.id = ex_db.id
                 if stream == 'append':
+                    # обойти циклом по сетам - добавлять вопросы, если нет одинаковых по контенту
+                    # если вопросы совпадают, то перезаписывать его подэлменты (Section / ex / ans)
                     ex_db.l_sets += ex.l_sets
                     ex = ex_db
                 for tlet in ex.l_sets:

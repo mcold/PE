@@ -192,6 +192,11 @@ class Section:
 
 class Quest:
 
+    def __eq__(self, other) -> bool:
+        return self.id_set == other.id_set \
+           and self.id_section == other.id_section \
+           and self.content.lower() == other.content.lower()
+
     def __init__(self, t: tuple):
         if len(t) > 0:
             self.id = t[0]
@@ -371,6 +376,16 @@ class Quest:
 
 class QSet:
 
+    def __add__(self, other):
+        pass
+
+
+
+    def __eq__(self, other) -> bool:
+        return self.id == other.id \
+               and self.id_exam == other.id_exam \
+               and self.name.lower() == other.name.lower()
+
     def __init__(self, t: tuple):
         if len(t) > 0:
             self.id = t[0]
@@ -378,6 +393,7 @@ class QSet:
             self.name = t[2]
 
             self.l_quests = self.get_quests()
+            if not self.id: self.get_self()
         else:
             self.id = None
             self.id_exam = None
@@ -418,6 +434,20 @@ class QSet:
                             order by id""".format(id = self.id))
         return [Quest(result) for result in cur.fetchall()]
     
+    def get_self(self):
+        with connect(db) as conn:
+            cur = conn.cursor()
+            cur.execute(f"""select id,
+                                   id_exam,
+                                   name
+                              from qset
+                             where lower(name) = {self.name.lower()}
+                             limit 1
+                            """)
+            l = cur.fetchall()
+            if len(l) > 0: self.id = l[0][0]
+
+    
     def save(self):
         with connect(db) as conn:
             cur = conn.cursor()
@@ -433,6 +463,16 @@ class QSet:
 
 
 class Exam:
+
+    def __add__(self, other):
+        # l_new_qsets = list()
+        for qset_other in other.l_sets:
+            for qset_self in self.l_sets:
+                if qset_other.name.lower() == qset_self.name.lower():
+                    qset_self += qset_other
+                    break
+            self.l_sets.append(qset_other)
+
 
     def __init__(self, t: tuple):
         if len(t) > 0:
