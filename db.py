@@ -1,12 +1,8 @@
 # coding: utf-8
 from sqlite3 import connect
 import string
-
-db = 'DB.db'
-
-
-# TODO: save: если quest уже существует -> заново сохранить ответ и объяснение
-# TODO: section saving and getting
+from config import *
+import copy
 
 """
 Exam [Name]
@@ -27,16 +23,27 @@ Explanation:
 [Content]
 
 """
+from root import Root
 
-class Typing:
+class Typing(Root):
+
+    tbl_name = 'typing'
+    id = 0
 
     def __init__(self, t: tuple):
         if len(t) > 0:
-            self.id = t[0]
+            if t[0]:
+                self.id = t[0]
+            else:
+                self.get_id_next()
+                super().__init__(id)
+                self.id = copy.deepcopy(self.id_tmp)
             self.id_quest = t[1]
             self.content = t[2]
         else:
-            self.id = None
+            self.get_id_next()
+            super().__init__(self.id)
+            self.id = copy.deepcopy(self.id_tmp)
             self.id_quest = None
             self.content = ''
 
@@ -44,7 +51,7 @@ class Typing:
         return self.content
 
     def drop(self) -> None:
-        with connect(db) as conn:
+        with connect(db_file) as conn:
             cur = conn.cursor()
             cur.execute(f"""delete 
                               from typing
@@ -52,26 +59,37 @@ class Typing:
             conn.commit()
 
     def save(self):
-        with connect(db) as conn:
-            cur = conn.cursor()
-                
-            cur.execute(f"""insert into typing(id_quest, content)
-                              values({self.id_quest}, '{self.content}')
-                            returning id
-                        """)
+        if len(self.content.strip()) > 0:
+            with connect(db_file) as conn:
+                cur = conn.cursor()
+                    
+                cur.execute(f"""insert into typing(id, id_quest, content)
+                                  values({self.id}, {self.id_quest}, '{self.content}')
+                                on conflict(id) do
+                                update set id_quest = {self.id_quest},
+                                           content = '{self.content}' 
+                            """)
 
-            self.id = cur.fetchone()[0]
+class Ans(Root):
 
-class Ans:
+    tbl_name = 'ans'
+    id = 0
 
     def __init__(self, t: tuple):
         if len(t) > 0:
-            self.id = t[0]
+            if t[0]:
+                self.id = t[0]
+            else:
+                self.get_id_next()
+                super().__init__(id)
+                self.id = copy.deepcopy(self.id_tmp)
             self.id_quest = t[1]
             self.content = t[2]
             self.is_correct = t[3]
         else:
-            self.id = None
+            self.get_id_next()
+            super().__init__(self.id)
+            self.id = copy.deepcopy(self.id_tmp)
             self.id_quest = None
             self.content = ''
             self.is_correct = False
@@ -80,7 +98,7 @@ class Ans:
         return self.content
 
     def drop(self) -> None:
-        with connect(db) as conn:
+        with connect(db_file) as conn:
             cur = conn.cursor()
             cur.execute(f"""delete 
                               from ans
@@ -88,29 +106,41 @@ class Ans:
             conn.commit()
 
     def save(self):
-        with connect(db) as conn:
-            cur = conn.cursor()
-            if self.is_correct:
-                val = 1
-            else:
-                val = 0
-                
-            cur.execute(f"""insert into ans(id_quest, content, is_correct)
-                              values({self.id_quest}, '{self.content}', {val})
-                            returning id
-                        """)
+        if len(self.content.strip()) > 0:
+            with connect(db_file) as conn:
+                cur = conn.cursor()
+                if self.is_correct:
+                    val = 1
+                else:
+                    val = 0
+                    
+                cur.execute(f"""insert into ans(id, id_quest, content, is_correct)
+                                  values({self.id}, {self.id_quest}, '{self.content}', {val})
+                                on conflict(id) do
+                                update set id_quest = {self.id_quest},
+                                           content = '{self.content}',
+                                           is_correct = {val} 
+                            """)
 
-            self.id = cur.fetchone()[0]
+class Exp(Root):
 
-class Exp:
+    tbl_name = 'exp'
+    id = 0
 
     def __init__(self, t: tuple):
         if len(t) > 0:
-            self.id = t[0]
+            if t[0]:
+                self.id = t[0]
+            else:
+                self.get_id_next()
+                super().__init__(id)
+                self.id = copy.deepcopy(self.id_tmp)
             self.id_quest = t[1]
             self.content = t[2]
         else:
-            self.id = None
+            self.get_id_next()
+            super().__init__(self.id)
+            self.id = copy.deepcopy(self.id_tmp)
             self.id_quest = None
             self.content = ''
 
@@ -121,7 +151,7 @@ class Exp:
         return 'Explanation:\n' + self.content + '\n'
     
     def drop(self) -> None:
-        with connect(db) as conn:
+        with connect(db_file) as conn:
             cur = conn.cursor()
             cur.execute(f"""delete 
                               from exp 
@@ -130,27 +160,38 @@ class Exp:
 
     def save(self):
         if len(self.content.strip()) > 0:
-            with connect(db) as conn:
+            with connect(db_file) as conn:
                 cur = conn.cursor()
-                cur.execute(f"""insert into exp(id_quest, content)
-                                values({self.id_quest}, '{self.content}')
-                                returning id
+                cur.execute(f"""insert into exp(id, id_quest, content)
+                                  values({self.id}, {self.id_quest}, '{self.content}')
+                                on conflict(id) do
+                                update set id_quest = {self.id_quest},
+                                           content = '{self.content}' 
                             """)
-                self.id = cur.fetchone()[0]
 
-class Section:
+class Section(Root):
+
+    tbl_name = 'section'
+    id = 0
 
     def __eq__(self, other):
         return self.id == other.id and self.name == other.name
 
     def __init__(self, t: tuple):
         if len(t) > 0:
-            self.id = t[0]
+            if t[0]:
+                self.id = t[0]
+            else:
+                self.get_id_next()
+                super().__init__(id)
+                self.id = copy.deepcopy(self.id_tmp)
             self.name = t[1]
 
             # self.l_quests = self.get_quests()
         else:
-            self.id = None
+            self.get_id_next()
+            super().__init__(self.id)
+            self.id = copy.deepcopy(self.id_tmp)
             self.name = ''
 
             self.l_quests = list()
@@ -162,7 +203,7 @@ class Section:
         return 'Section: ' + self.name
     
     def drop(self) -> None:
-        with connect(db) as conn:
+        with connect(db_file) as conn:
             cur = conn.cursor()
             cur.execute(f"""delete 
                               from section
@@ -170,27 +211,26 @@ class Section:
             conn.commit()
     
     def save(self):
-        with connect(db) as conn:
-            cur = conn.cursor()
-            cur.execute(f"""insert into section(name)
-                              values('{self.name}')
-                              on conflict do nothing
-                            returning id
-                        """)
-            l = cur.fetchall()
-            if len(l) > 0: 
-                self.id = l[0][0]
-                return
-            
-            cur.execute(f"""select id 
-                              from section
-                             where name = '{self.name}'
-                        limit 1
-                        """)
-            self.id = cur.fetchone()[0]
-            return
+        if len(self.name.strip()) > 0:
+            with connect(db_file) as conn:
+                cur = conn.cursor()
+                cur.execute(f"""insert into section(id, name)
+                                values({self.id}, '{self.name}')
+                                on conflict(id) do nothing
+                            """)
 
-class Quest:
+class Quest(Root):
+
+    tbl_name = 'quest'
+    id = 0
+
+    def __add__(self, other):
+        if not self.id: self.id = other.id
+        self.content = other.content
+        self.l_ans = other.l_ans
+        self.exp = other.exp
+        self.typing = other.typing
+        return self
 
     def __eq__(self, other) -> bool:
         return self.id_set == other.id_set \
@@ -199,7 +239,12 @@ class Quest:
 
     def __init__(self, t: tuple):
         if len(t) > 0:
-            self.id = t[0]
+            if t[0]:
+                self.id = t[0]
+            else:
+                self.get_id_next()
+                super().__init__(id)
+                self.id = copy.deepcopy(self.id_tmp)
             self.id_set = t[1]
             self.id_section = t[2]
             self.content = t[3].replace("'", '').replace('"', '')
@@ -213,7 +258,9 @@ class Quest:
             self.typing = self.get_typing()
             self.exp = self.get_exp()
         else:
-            self.id = None
+            self.get_id_next()
+            super().__init__(self.id)
+            self.id = copy.deepcopy(self.id_tmp)
             self.id_set = None
             self.id_section = None
             self.content = ''
@@ -258,7 +305,7 @@ class Quest:
         for ans in self.l_ans: ans.drop()
         if self.exp: self.exp.drop()
         if self.typing.id: self.typing.drop()
-        with connect(db) as conn:
+        with connect(db_file) as conn:
             cur = conn.cursor()
             cur.execute(f"""delete 
                               from quest 
@@ -266,7 +313,7 @@ class Quest:
             conn.commit()
 
     def get_ans(self):
-        with connect(db) as conn:
+        with connect(db_file) as conn:
             cur = conn.cursor()
             cur.execute("""select id,
                                   id_quest,
@@ -289,7 +336,7 @@ class Quest:
         return res
     
     def get_exp(self):
-        with connect(db) as conn:
+        with connect(db_file) as conn:
             cur = conn.cursor()
             cur.execute("""select id,
                                   id_quest,
@@ -303,7 +350,7 @@ class Quest:
             return None
 
     def get_section(self):
-        with connect(db) as conn:
+        with connect(db_file) as conn:
             cur = conn.cursor()
             cur.execute("""select id,
                                   name
@@ -317,7 +364,7 @@ class Quest:
             return Section(tuple())
     
     def get_typing(self):
-        with connect(db) as conn:
+        with connect(db_file) as conn:
             cur = conn.cursor()
             cur.execute("""select id,
                                   id_quest,
@@ -337,28 +384,30 @@ class Quest:
                 self.section.save()
                 self.id_section = self.section.id
         
-                with connect(db) as conn:
+                with connect(db_file) as conn:
                     cur = conn.cursor()
-                    cur.execute(f"""insert into quest(id_set, id_section, content)
-                                    values({self.id_set}, {self.id_section}, '{self.content}')
-                                    on conflict do nothing
-                                    returning id
+                    cur.execute(f"""insert into quest(id, id_set, id_section, content)
+                                    values({self.id}, {self.id_set}, {self.id_section}, '{self.content}')
+                                    on conflict(id) do
+                                    update set id_set = {self.id_set},
+                                               id_section = {self.id_section},
+                                               content = '{self.content}' 
+                                
                                 """)
-                    self.id = cur.fetchone()[0]
             else:
                 b_no_section = True
         else:
             b_no_section = True
 
         if b_no_section:
-            with connect(db) as conn:
+            with connect(db_file) as conn:
                 cur = conn.cursor()
-                cur.execute(f"""insert into quest(id_set, content)
-                                values({self.id_set}, '{self.content}')
-                                on conflict do nothing
-                                returning id
+                cur.execute(f"""insert into quest(id, id_set, content)
+                                values({self.id}, {self.id_set}, '{self.content}')
+                                on conflict(id) do
+                                update set id_set = {self.id_set},
+                                           content = '{self.content}' 
                             """)
-                self.id = cur.fetchone()[0]
 
         for ans in self.l_ans: 
             ans.id_quest = self.id
@@ -374,39 +423,68 @@ class Quest:
                 self.typing.save()
                     
 
-class QSet:
+class QSet(Root):
+
+    tbl_name = 'qset'
+    id = 0
 
     def __add__(self, other):
-        pass
+        l_new_quests = list()
+        for q_other in other.l_quests:
+            b_found = False
+            for q_self in self.l_quests:
+                if q_other == q_self:
+                    q_self += q_other
+                    l_new_quests.append(q_self)
+                    b_found = True
+                    break
+            if not b_found:
+                l_new_quests.append(q_other)
+            b_found = False
 
+        for q_self in self.l_quests:
+            b_found = False
+            for q_other in other.l_quests:
+                if q_self == q_other:
+                    b_found = True
+            if not b_found:
+                l_new_quests.append(q_self)
 
+        self.l_quests = l_new_quests
+        return self
 
     def __eq__(self, other) -> bool:
-        return self.id == other.id \
-               and self.id_exam == other.id_exam \
-               and self.name.lower() == other.name.lower()
+        return self.name.lower() == other.name.lower()
+
 
     def __init__(self, t: tuple):
         if len(t) > 0:
-            self.id = t[0]
+            if t[0]:
+                self.id = t[0]
+            else:
+                self.get_id_next()
+                super().__init__(id)
+                self.id = copy.deepcopy(self.id_tmp)
             self.id_exam = t[1]
             self.name = t[2]
 
             self.l_quests = self.get_quests()
             if not self.id: self.get_self()
         else:
-            self.id = None
+            self.get_id_next()
+            super().__init__(self.id)
+            self.id = copy.deepcopy(self.id_tmp)
             self.id_exam = None
             self.name = None
             self.l_quests = list()
 
     def __repr__(self) -> str:
-        res = '\nTestlet ' + self.name + '\n'
+        res = '\nSet ' + self.name + '\n'
         for i in range(len(self.l_quests)): res += 'Question ' + str(i+1) + ' ' + self.l_quests[i].__str__() + '\n\n'
         return  res
     
     def __str__(self) -> str:
-        res = '\nTestlet ' + self.name + '\n'
+        res = '\nSet ' + self.name + '\n'
         for i in range(len(self.l_quests)): res += 'Question ' + str(i+1) + ' ' + self.l_quests[i].__str__() + '\n\n'
         return  res
 
@@ -415,7 +493,7 @@ class QSet:
 
     def drop(self) -> None:
         for quest in self.l_quests: quest.drop()
-        with connect(db) as conn:
+        with connect(db_file) as conn:
             cur = conn.cursor()
             cur.execute(f"""delete 
                               from qset 
@@ -423,7 +501,7 @@ class QSet:
             conn.commit()
 
     def get_quests(self):
-        with connect(db) as conn:
+        with connect(db_file) as conn:
             cur = conn.cursor()
             cur.execute("""select id,
                                   id_set,
@@ -435,7 +513,7 @@ class QSet:
         return [Quest(result) for result in cur.fetchall()]
     
     def get_self(self):
-        with connect(db) as conn:
+        with connect(db_file) as conn:
             cur = conn.cursor()
             cur.execute(f"""select id,
                                    id_exam,
@@ -449,40 +527,69 @@ class QSet:
 
     
     def save(self):
-        with connect(db) as conn:
+        with connect(db_file) as conn:
             cur = conn.cursor()
-            cur.execute(f"""insert into qset(id_exam, name)
-                              values({self.id_exam}, '{self.name}')
-                            on conflict do nothing
-                            returning id
+            cur.execute(f"""insert into qset(id, id_exam, name)
+                              values({self.id}, {self.id_exam}, '{self.name}')
+                              on conflict(id) do
+                              update set id_exam = {self.id_exam},
+                                         name = '{self.name}'
                         """)
-            self.id = cur.fetchone()[0]
         for quest in self.l_quests: 
             quest.id_set = self.id
             quest.save()
 
 
-class Exam:
+class Exam(Root):
+
+    tbl_name = 'exam'
+    id = 0
 
     def __add__(self, other):
-        # l_new_qsets = list()
+        l_new_qsets = list()
         for qset_other in other.l_sets:
+            b_found = False
             for qset_self in self.l_sets:
-                if qset_other.name.lower() == qset_self.name.lower():
+                if qset_other == qset_self:
                     qset_self += qset_other
+                    l_new_qsets.append(qset_self)
+                    b_found = True
                     break
-            self.l_sets.append(qset_other)
+            if not b_found:
+                l_new_qsets.append(qset_other)
+            b_found = False
+        
+        for qset_self in self.l_sets:
+            b_found = False
+            for qset_other in other.l_sets:
+                if qset_self == qset_other:
+                    b_found = True
+            if not b_found:
+                l_new_qsets.append(qset_self)
+        self.l_sets = l_new_qsets
+        return self
+    
+
+    def __eq__(self, other) -> bool:
+        return self.name == other.name
 
 
     def __init__(self, t: tuple):
         if len(t) > 0:
-            self.id = t[0]
+            if t[0]:
+                self.id = t[0]
+            else:
+                self.get_id_next()
+                super().__init__(id)
+                self.id = copy.deepcopy(self.id_tmp)
             self.id_item = t[1]
             self.name = t[2]
 
             self.l_sets = self.get_qsets()
         else:
-            self.id = None
+            self.get_id_next()
+            super().__init__(self.id)
+            self.id = copy.deepcopy(self.id_tmp)
             self.id_item = None
             self.name = None
             self.l_sets = list()
@@ -498,7 +605,7 @@ class Exam:
 
     def drop(self) -> None:
         for tlet in self.l_sets: tlet.drop()
-        with connect(db) as conn:
+        with connect(db_file) as conn:
             cur = conn.cursor()
             cur.execute(f"""delete 
                               from exam 
@@ -506,7 +613,7 @@ class Exam:
             conn.commit()
 
     def get_qsets(self):
-        with connect(db) as conn:
+        with connect(db_file) as conn:
             cur = conn.cursor()
             cur.execute("""select id,
                                   id_exam,
@@ -517,23 +624,59 @@ class Exam:
         return [QSet(result) for result in cur.fetchall()]
 
     def save(self):
-        with connect(db) as conn:
+        with connect(db_file) as conn:
             cur = conn.cursor()
-            cur.execute(f"""insert into exam(id_item, name)
-                              values({self.id_item}, '{self.name}')
-                            on conflict do nothing
-                            returning id
+            cur.execute(f"""insert into exam(id, id_item, name)
+                              values({self.id}, {self.id_item}, '{self.name}')
+                            on conflict(id) do
+                            update set id_item = {self.id_item},
+                                       name = '{self.name}'
                         """)
-            self.id = cur.fetchone()[0]
+        
         for tlet in self.l_sets: 
             tlet.id_exam = self.id
             tlet.save()
 
-class Item:
+class Item(Root):
+
+    tbl_name = 'item'
+    id = 0
+
+    def __add__(self, other):
+        l_new_exams = list()
+        for ex_other in other.l_exams:
+            b_found = False
+            for ex_self in self.l_exams:
+                if ex_other == ex_self:
+                    ex_self += ex_other
+                    l_new_exams.append(ex_self)
+                    b_found = True
+                    break
+            if not b_found:
+                l_new_exams.append(ex_other)
+            b_found = False
+        
+        
+        for ex_self in self.l_exams:
+            b_found = False
+            for ex_other in other.l_exams:
+                if ex_self == ex_other:
+                    b_found = True
+            if not b_found:
+                l_new_exams.append(ex_self)
+
+        self.l_exams = l_new_exams
+        return self
+
 
     def __init__(self, t: tuple, from_db: bool = False):
         if len(t) > 0:
-            self.id = t[0]
+            if t[0]:
+                self.id = t[0]
+            else:
+                self.get_id_next()
+                super().__init__(self.id)
+                self.id = copy.deepcopy(self.id_tmp)
             self.name = t[1]
 
             if from_db:
@@ -541,7 +684,9 @@ class Item:
             else:
                 self.l_exams = list()
         else:
-            self.id = None
+            self.get_id_next()
+            super().__init__(self.id)
+            self.id = copy.deepcopy(self.id_tmp)
             self.name = None
             self.l_exams = list()
 
@@ -556,7 +701,7 @@ class Item:
     
     def drop(self) -> None:
         for ex in self.l_exams: ex.drop()
-        with connect(db) as conn:
+        with connect(db_file) as conn:
             cur = conn.cursor()
             cur.execute(f"""delete 
                               from item 
@@ -564,7 +709,7 @@ class Item:
             conn.commit()
 
     def get_exams(self):
-        with connect(db) as conn:
+        with connect(db_file) as conn:
             cur = conn.cursor()
             cur.execute("""select id,
                                   id_item,
@@ -575,20 +720,19 @@ class Item:
         return [Exam(result) for result in cur.fetchall()]
     
     def save(self):
-        with connect(db) as conn:
+        with connect(db_file) as conn:
             cur = conn.cursor()
-            cur.execute(f"""insert into item(name)
-                              values('{self.name}')
-                            on conflict do nothing
-                            returning id
+            cur.execute(f"""insert into item(id, name)
+                              values({self.id}, '{self.name}')
+                            on conflict(id) do
+                            update set name = '{self.name}'
                         """)
-            self.id = cur.fetchone()[0]
         for exam in self.l_exams: 
             exam.id_item = self.id
             exam.save()
 
 def get_exam(id_item: int, exam_name: str) -> Exam:
-    with connect(db) as conn:
+    with connect(db_file) as conn:
         cur = conn.cursor()
         cur.execute("""select id,
                               id_item,
@@ -602,7 +746,7 @@ def get_exam(id_item: int, exam_name: str) -> Exam:
         else: return Exam(tuple())
 
 def get_item(item_name: str = None) -> Item:
-    with connect(db) as conn:
+    with connect(db_file) as conn:
         cur = conn.cursor()
         cur.execute("""select id,
                               name
@@ -616,7 +760,7 @@ def get_item(item_name: str = None) -> Item:
         else: return Item(tuple())
 
 def get_items(item_name: str = None) -> list:
-    with connect(db) as conn:
+    with connect(db_file) as conn:
         cur = conn.cursor()
         cur.execute("""select id,
                               name
@@ -629,7 +773,7 @@ def get_items(item_name: str = None) -> list:
         else: return []
 
 def get_section(name: str) -> Section:
-    with connect(db) as conn:
+    with connect(db_file) as conn:
         cur = conn.cursor()
         cur.execute("""select id,
                               name
@@ -645,42 +789,65 @@ def get_section(name: str) -> Section:
 def create_db(con: connect) -> None:
     cur = con.cursor()
     cur.execute("""
-                    create table item (id   integer primary key autoincrement,
-                                       name text not null unique);
+                    create table if not exists item (id   integer primary key,
+                                                     name text not null unique);
                 """)
+    Item.set_tbl_name('item')
+    Item.get_id_next()
+    
     cur.execute("""
-                    create table exam (id       integer primary key autoincrement,
-                                       id_item  integer references item(id),
-                                       name     text not null unique);
+                    create table if not exists exam (id       integer primary key,
+                                                    id_item  integer references item(id),
+                                                    name     text not null unique);
                 """)
+    Exam.set_tbl_name('exam')
+    Exam.get_id_next()
+
     cur.execute("""
-                    create table qset (id        integer primary key autoincrement,
-                                       id_exam   integer references exam(id),
-                                       name      text not null unique);
+                    create table if not exists qset (id        integer primary key,
+                                                    id_exam   integer references exam(id),
+                                                    name      text not null unique);
                 """)
+    QSet.set_tbl_name('qset')
+    QSet.get_id_next()
+
     cur.execute("""
-                    create table section (id    integer primary key autoincrement,
-                                          name  text not null unique);
+                    create table if not exists  section (id    integer primary key,
+                                                         name  text not null unique);
                 """)
+    Section.set_tbl_name('section')
+    Section.get_id_next()
+
     cur.execute("""
-                    create table quest (id          integer primary key autoincrement,
-                                        id_set      integer references qset(id),
-                                        id_section  integer references section(id),
-                                        content     text not null);
+                    create table if not exists quest (id          integer primary key,
+                                                      id_set      integer references qset(id),
+                                                      id_section  integer references section(id),
+                                                      content     text not null);
                 """)
+    Quest.set_tbl_name('quest')
+    Quest.get_id_next()
+
     cur.execute("""
-                    create table ans (id            integer primary key autoincrement,
-                                      id_quest      integer references quest(id),
-                                      content       text not null,
-                                      is_correct    integer not null default 0);
+                    create table if not exists ans (id            integer primary key,
+                                                    id_quest      integer references quest(id),
+                                                    content       text not null,
+                                                    is_correct    integer not null default 0);
                 """)
+    Ans.set_tbl_name('ans')
+    Ans.get_id_next()
+
     cur.execute("""
-                    create table exp (id        integer primary key autoincrement,
-                                      id_quest  integer references quest(id),
-                                      content   text not null);
+                    create table if not exists exp (id        integer primary key,
+                                                    id_quest  integer references quest(id),
+                                                    content   text not null);
                 """)
+    Exp.set_tbl_name('exp')
+    Exp.get_id_next()
+
     cur.execute("""
-                    create table typing (id        integer primary key autoincrement,
-                                        id_quest   integer references quest(id),
-                                        content    text not null);
+                    create table if not exists typing (id        integer primary key,
+                                                       id_quest   integer references quest(id),
+                                                       content    text not null);
                 """)
+    Typing.set_tbl_name('typing')
+    Typing.get_id_next()

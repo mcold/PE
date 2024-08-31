@@ -121,13 +121,13 @@ def get_item_file(file_name: str, item_name: str) -> db.Item:
                         b_exp = False
                     else:
                         # -> typing
-                        quest.typing = db.Typing(tuple([None, None, line[16:].strip()]))
+                        quest.typing.content = line[16:].strip()
                         b_ans = False
                         b_exp = False
                     continue
 
                 if line.lower().startswith('section'):
-                    quest.section = db.Section(tuple([None, line.split(':')[-1].strip()]))
+                    quest.section.name = line.split(':')[-1].strip()
                     sect = db.get_section(name=quest.section.name)
                     if sect.id:
                         quest.section = sect
@@ -158,7 +158,7 @@ def get_item_file(file_name: str, item_name: str) -> db.Item:
                                 else:
                                     exp.content = line.strip()
                                 continue
-                            
+                            quest.content += '\n' + line.strip()
                             continue
         if b_exam:
             if b_testlet:

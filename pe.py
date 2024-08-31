@@ -7,11 +7,11 @@ from os import sep
 import typer
 import use
 import sys
+from config import *
 
-db_file = 'DB.db'
 
 
-if not path.exists(db_file): db.create_db(con=connect(db_file))
+db.create_db(con=connect(db_file))
 
 app = typer.Typer()
 
@@ -33,30 +33,11 @@ def imp(file_name: str, item_name: str, stream: str = 'rewrite') -> None:
         sys.exit(0)
     item_db = db.get_item(item_name=item_name)
     item_file = use.get_item_file(file_name=file_name, item_name=item_name)
-    if item_db.id:
-        # TODO: rewrite only sets -> change to quests
-        for ex in item_file.l_exams:
-            ex_db = db.get_exam(id_item=item_db.id, exam_name=ex.name)
-            if ex_db.id:
-                if stream == 'rewrite':
-                    for tlet in ex_db.l_sets:
-                        tlet.drop()
-                    ex.id = ex_db.id
-                if stream == 'append':
-                    # обойти циклом по сетам - добавлять вопросы, если нет одинаковых по контенту
-                    # если вопросы совпадают, то перезаписывать его подэлменты (Section / ex / ans)
-                    ex_db.l_sets += ex.l_sets
-                    ex = ex_db
-                for tlet in ex.l_sets:
-                    tlet.id_exam = ex.id
-                    tlet.save()
-                    return
-            else:
-                ex.save()
-        ex.id_item = item_db.id
-        ex.save()
+    if item_db.name:
+        item = item_db + item_file
     else:
-        item_file.save()
+        item = item_file
+    item.save()
 
 @app.command(help='Items list')
 def ls():
