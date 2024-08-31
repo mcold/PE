@@ -38,8 +38,8 @@ def get_item_file(file_name: str, item_name: str) -> db.Item:
         item.name = item_name
         for line in l_lines:
             if len(line.strip()) > 0:
-                line = line.replace("'", '').replace('"', '')
                 # TODO: rewrite to pattern matching
+                line = line.replace('"', '👆').replace("'", "👇")
                 if line.lower().startswith('exam'):
                     if b_exam:
                         if b_testlet:
@@ -62,6 +62,7 @@ def get_item_file(file_name: str, item_name: str) -> db.Item:
                             
                     b_exam = True
                     ex = db.Exam(tuple())
+                    line = line
                     ex.name = line[5:].lstrip(':').strip()
                     continue
 
@@ -150,16 +151,22 @@ def get_item_file(file_name: str, item_name: str) -> db.Item:
                                 if len(ans.content) > 0:
                                     ans.content += '\n' + line
                                 else:
-                                    ans.content = line.strip()
+                                    ans.content = line
                                 continue
                             if b_exp:
                                 if len(exp.content) > 0:
-                                    exp.content += '\n' + line.strip()
+                                    exp.content += '\n' + line
                                 else:
-                                    exp.content = line.strip()
+                                    exp.content = line
                                 continue
-                            quest.content += '\n' + line.strip()
+                            quest.content += '\n' + line.rstrip()
                             continue
+            else:
+                if b_quest:
+                    if b_ans:
+                        ans.content += '\n'
+                    else:
+                        quest.content += '\n'
         if b_exam:
             if b_testlet:
                 if b_quest:
@@ -167,12 +174,12 @@ def get_item_file(file_name: str, item_name: str) -> db.Item:
                         if len(ans.content) > 0:
                             ans.content += '\n' + line
                         else:
-                            ans.content = line.strip()
+                            ans.content = line
                     if b_exp:
                         if len(exp.content) > 0:
-                            exp.content += '\n' + line.strip()
+                            exp.content += '\n' + line
                         else:
-                            exp.content = line.strip()
+                            exp.content = line
                     qset.l_quests.append(quest)
                 ex.l_sets.append(qset)
             item.l_exams.append(ex)
